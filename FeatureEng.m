@@ -57,39 +57,14 @@ function [M_i_k, Seg_points_S, Seg_points_E] = process_segment_3h(Data_in,Sampli
     unbiased_gyro = State(:,10:12);     % unbiased gyro 
     
     t_plot = linspace(0,size(acc_data,1)/SamplingRate,size(acc_data,1));
-    
-    figure('Color','w') 
-    plot(t_plot,acc_data(:,1), '--','Color',[1,0.4,0.6], 'LineWidth',2')
-    hold on
-    plot(t_plot,acc_data(:,2), '-.','Color',[0,0.9,0.6], 'LineWidth',2')
-    hold on
-    plot(t_plot,acc_data(:,3), '-', 'Color',[0.2,0.8,1], 'LineWidth',2')
-    set(gca, 'FontSize', 20)
-    title('Acceleration Data Prior to Applying the Kalman Filter','FontSize', 24)
-    xlabel('Time (sec)')
-    ylabel('Acceleration (m/s^2)')
-    legend({'a_x','a_y','a_z'},'Location','southwest')
 
     
+
     % finds the quaternions of the rotation in order to transfering
     % body frame set of data to global frame
     acc_glob = Quaternion(acc_data,Rot);
     gyro_glob = Quaternion(gyro_data,Rot);
     
-    figure('Color','w')
-    plot(t_plot,acc_glob(:,1), '--','Color',[1,0.4,0.6], 'LineWidth',2')
-    hold on
-    plot(t_plot,acc_glob(:,2), '-.','Color',[0,0.9,0.6], 'LineWidth',2')
-    hold on
-    plot(t_plot,acc_glob(:,3), '-', 'Color',[0.2,0.8,1], 'LineWidth',2')
-    set(gca, 'FontSize', 20)
-    title('Acceleration Data Post Applying the Kalman Filter','FontSize', 24)
-    xlabel('Time (sec)')
-    ylabel('Acceleration (m/s^2)')
-    legend({'a_x','a_y','a_z'},'Location','southwest')
-
-
-
     
     acc_g = repmat([0 -9.55 0],length(acc_data),1);
     acc_lin = acc_glob + acc_g; 
@@ -173,16 +148,54 @@ function [M_i_k, Seg_points_S, Seg_points_E] = process_segment_3h(Data_in,Sampli
     end
 
     % Metrics Segmentation
-    Velocity = mag(cell2mat(Vel),1);
+    vel_xyz = cell2mat(Vel);
+    Velocity = mag(vel_xyz,1);
     Jerk = mag(cell2mat(Jrk),1);
     
-    figure('Color','w') 
-    plot(t_plot,Velocity,'Color',[0.2,0.2,0.6], 'LineWidth',2)
+    
+    figure('Color','w')
+    subplot(3,1,1)
+    plot(t_plot(1:100),acc_data(1:100,1), '--','Color',[1,0.4,0.6], 'LineWidth',2')
+    hold on
+    plot(t_plot(1:100),acc_data(1:100,2), '-.','Color',[0,0.9,0.6], 'LineWidth',2')
+    hold on
+    plot(t_plot(1:100),acc_data(1:100,3), '-', 'Color',[0.2,0.8,1], 'LineWidth',2')
     set(gca, 'FontSize', 20)
-    title('Velocity Magnitude Data Derived from the Translated Non-gravitational Acceleration Data','FontSize', 24)
+    ylabel([{'IMU Acceleration'}; {'(m/s^2)'}])
+    legend({'\bf{a_x}','\bf{a_x}','\bf{a_x}'},'Location','southwest')
+    set(gca,'xtick',[])
+
+    subplot(3,1,2)
+    plot(t_plot(1:100),gyro_data(1:100,1), '--','Color',[1,0.4,0.6], 'LineWidth',2')
+    hold on
+    plot(t_plot(1:100),gyro_data(1:100,2), '-.','Color',[0,0.9,0.6], 'LineWidth',2')
+    hold on
+    plot(t_plot(1:100),gyro_data(1:100,3), '-', 'Color',[0.2,0.8,1], 'LineWidth',2')
+    set(gca, 'FontSize', 20)
+    ylabel([{'IMU Angular'}; {'Velocity (deg/s)'}])
+    legend({'\theta_{\bf{x}}','\theta_{\bf{y}}','\theta_{\bf{z}}'},'Location','southwest')
+    set(gca,'xtick',[])
+    
+
+    subplot(3,1,3)
+    plot(t_plot(20:100),vel_xyz(20:100,1), t_plot(100:120),zeros(21,1), '--','Color',[1,0.4,0.6], 'LineWidth',2')
+    hold on
+    plot(t_plot(20:100),vel_xyz(20:100,2), t_plot(100:120),zeros(21,1), '-.','Color',[0,0.9,0.6], 'LineWidth',2')
+    hold on
+    plot(t_plot(20:100),vel_xyz(20:100,3), t_plot(100:120),zeros(21,1), '-', 'Color',[0.2,0.8,1], 'LineWidth',2')
+    set(gca, 'FontSize', 20)
     xlabel('Time (sec)')
-    ylabel('Velocity (m/s)')
-    legend({'{\bf{v}}_{magnitude}'},'Location','southwest')
+    ylabel([{'Undrifted Foot'}, {'Velocity (m/s)'}])
+    legend({'\bf{V_x}','\bf{V_x}','\bf{V_x}'},'Location','southwest')
+    
+    figure('Color','w')
+    plot(t_plot(20:45),zeros(26,1), t_plot(45:100),...
+        Acceleration_filt_magn(45:100)-linspace(Acceleration_filt_magn(45),Acceleration_filt_magn(100),...
+        length(Acceleration_filt_magn(45:100)))', t_plot(100:120),zeros(21,1), '-', 'Color',[0.2,0.8,1], 'LineWidth',2')
+    set(gca, 'FontSize', 20)
+    ylabel([{'Foot Acceleration'}, {'Magnitude (m/s^2)'}])
+    legend('{\bf{a}}_{magnitude}','Location','southwest')
+    set(gca,'xtick',[])
     
     m = [Pos{1,1}(2:end), Pos{1,2}(2:end), Pos{1,3}(2:end), t(2:end), Velocity(2:end), t(2:end), Acceleration_filt_magn(2:end), t(2:end), Jerk, filtered_angle(2:end,1), filtered_angle(2:end,2), filtered_angle(2:end,1), unbiased_gyro(2:end,1), filtered_angle(2:end,2), unbiased_gyro(2:end,2),filtered_angle(2:end,3), unbiased_gyro(2:end,3), t(2:end)];
     
